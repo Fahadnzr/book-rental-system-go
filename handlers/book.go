@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"net/http"
+	"strings"
 	"sync"
 
 	"book-rental-system/models"
@@ -26,6 +27,22 @@ func AddBook(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
 		return
 	}
+	//  Validation for empty or whitespace-only fields
+	if len(strings.TrimSpace(input.Title)) == 0 || len(strings.TrimSpace(input.Author)) == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Title and Author cannot be empty"})
+		return
+	}
+	// Duplicate title check
+	titleToCheck := strings.ToLower(strings.TrimSpace(input.Title))
+	booksMu.RLock()
+	for _, b := range books {
+		if strings.ToLower(strings.TrimSpace(b.Title)) == titleToCheck {
+			booksMu.RUnlock()
+			c.JSON(http.StatusConflict, gin.H{"message": "A book with the given title already exists. Please use a different title."})
+			return
+		}
+	}
+	booksMu.RUnlock()
 	book := models.Book{
 		ID:        uuid.New(),
 		Title:     input.Title,

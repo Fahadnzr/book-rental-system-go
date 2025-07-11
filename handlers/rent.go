@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 )
 
-// Use usersMu, users, booksMu, books from other handler files
 type RentInput struct {
 	UserID string `json:"user_id" binding:"required,uuid"`
 	BookID string `json:"book_id" binding:"required,uuid"`
@@ -16,36 +15,36 @@ type RentInput struct {
 func RentBook(c *gin.Context) {
 	var input RentInput
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input"})
 		return
 	}
 	userID, err := uuid.Parse(input.UserID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user_id"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user_id"})
 		return
 	}
 	bookID, err := uuid.Parse(input.BookID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book_id"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid book_id"})
 		return
 	}
 	usersMu.RLock()
 	_, userExists := users[userID]
 	usersMu.RUnlock()
 	if !userExists {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "User not found"})
 		return
 	}
 	booksMu.Lock()
 	book, bookExists := books[bookID]
 	if !bookExists {
 		booksMu.Unlock()
-		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Book not found"})
 		return
 	}
 	if !book.Available {
 		booksMu.Unlock()
-		c.JSON(http.StatusConflict, gin.H{"error": "Book not available"})
+		c.JSON(http.StatusConflict, gin.H{"message": "Book not available"})
 		return
 	}
 	book.Available = false
@@ -56,27 +55,41 @@ func RentBook(c *gin.Context) {
 
 func ReturnBook(c *gin.Context) {
 	var input struct {
+		UserID string `json:"user_id" binding:"required,uuid"`
 		BookID string `json:"book_id" binding:"required,uuid"`
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid input"})
+		return
+	}
+	userID, err := uuid.Parse(input.UserID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid user_id"})
 		return
 	}
 	bookID, err := uuid.Parse(input.BookID)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid book_id"})
+		c.JSON(http.StatusBadRequest, gin.H{"message": "Invalid book_id"})
+		return
+	}
+	// Check if user exists
+	usersMu.RLock()
+	_, userExists := users[userID]
+	usersMu.RUnlock()
+	if !userExists {
+		c.JSON(http.StatusNotFound, gin.H{"message": "User not found"})
 		return
 	}
 	booksMu.Lock()
 	book, bookExists := books[bookID]
 	if !bookExists {
 		booksMu.Unlock()
-		c.JSON(http.StatusNotFound, gin.H{"error": "Book not found"})
+		c.JSON(http.StatusNotFound, gin.H{"message": "Book not found"})
 		return
 	}
 	if book.Available {
 		booksMu.Unlock()
-		c.JSON(http.StatusConflict, gin.H{"error": "Book is not rented"})
+		c.JSON(http.StatusConflict, gin.H{"message": "Book is not rented"})
 		return
 	}
 	book.Available = true
