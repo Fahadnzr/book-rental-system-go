@@ -36,20 +36,19 @@ func RentBook(c *gin.Context) {
 		return
 	}
 	booksMu.Lock()
+	defer booksMu.Unlock()
+
 	book, bookExists := books[bookID]
 	if !bookExists {
-		booksMu.Unlock()
 		c.JSON(http.StatusNotFound, gin.H{"message": "Book not found"})
 		return
 	}
 	if !book.Available {
-		booksMu.Unlock()
 		c.JSON(http.StatusConflict, gin.H{"message": "Book not available"})
 		return
 	}
 	book.Available = false
 	books[bookID] = book
-	booksMu.Unlock()
 	c.JSON(http.StatusOK, gin.H{"message": "Book rented successfully"})
 }
 
@@ -81,19 +80,18 @@ func ReturnBook(c *gin.Context) {
 		return
 	}
 	booksMu.Lock()
+	defer booksMu.Unlock()
+
 	book, bookExists := books[bookID]
 	if !bookExists {
-		booksMu.Unlock()
 		c.JSON(http.StatusNotFound, gin.H{"message": "Book not found"})
 		return
 	}
 	if book.Available {
-		booksMu.Unlock()
 		c.JSON(http.StatusConflict, gin.H{"message": "Book is not rented"})
 		return
 	}
 	book.Available = true
 	books[bookID] = book
-	booksMu.Unlock()
 	c.JSON(http.StatusOK, gin.H{"message": "Book returned successfully"})
 }
